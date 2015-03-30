@@ -1,3 +1,5 @@
+from carleton.course import Course
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -38,56 +40,26 @@ def get_courses(faculty, year=2014, term=FALL):
     """
     Returns a list of Course objects for a given faculty code (i.e. COMP).
     """
-    # Grab the session ID.
-    session_id = get_session_id()
-    # Generate the term code (this is how Central encodes terms with years)
-    term_code = make_term_code(year, term)
+    # We grab the faculty courses page and soup it. This is a listing of courses.
+    faculty_courses = requests.get('http://calendar.carleton.ca/undergrad/courses/' + faculty)
+    soup = BeautifulSoup(faculty_courses.text)
+    # This variable contains a list of the divs that contain the course info.
+    course_divs = soup.find_all('div', attrs={'class': 'courseblock'})
 
-    if not (term_code and session_id):
-        # Propogate the error
-        return None
+    courses = []
 
-    # Don't know if this is needed, but make it think we did all the post requests
-    requests.post('http://central.carleton.ca/prod/bwysched.p_search_fields',
-                  data={'wsea_code': 'EXT', 'term_code': term_code, 'session_id': session_id})
+    for div in course_divs:
+        strong_block = div.find('strong')
+        text = strong_block.text
+        top, title = text.split('\n')
+        # The first half of this would be the faculty code, which we already have.
+        # Also for some reason it likes it when I split on \xa0 instead of space,
+        # though it's visaully a space. Probably a weird unicode thing.
+        _, course_no = top.split('[')[0].strip().split('\xa0')
 
-    post_params = {
-        'wsea_code': 'EXT',
-        'term_code': term_code,
-        'session_id': session_id,
-        'ws_numb': '',
-        'sel_aud': 'dummy',
-        'sel_subj': ['dummy', faculty],
-        'sel_camp': 'dummy',
-        'sel_sess': ['dummy', ''],
-        'sel_attr': 'dummy',
-        'sel_levl': ['dummy', ''],
-        'sel_schd': ['dummy', ''],
-        'sel_insm': 'dummy',
-        'sel_link': 'dummy',
-        'sel_wait': 'dummy',
-        'sel_day': ['dummy', 'm', 't', 'w', 'r', 'f', 's', 'u'],
-        'sel_begin_hh': ['dummy', '0'],
-        'sel_begin_mi': ['dummy', '0'],
-        'sel_begin_am_pm': ['dummy', 'a'],
-        'sel_end_hh': ['dummy', '0'],
-        'sel_end_mi': ['dummy', '0'],
-        'sel_end_am_pm': ['dummy', 'a'],
-        'sel_instruct': ['dummy', ''],
-        'sel_special': ['dummy', 'N'],
-        'sel_resd': 'dummy',
-        'sel_breadth': 'dummy',
-        'sel_number': '',
-        'sel_crn': '',
-        'block_button': ''
-    }
+        # Another magic number... 3 is the length of both 1.0, 0.5, and 0.0
+        credits = float(top.split('[')[1][:3])
 
-    search_results = requests.post('http://central.carleton.ca/prod/bwysched.p_course_search',
-                                    data=post_params)
-
-    if not search_results.ok:
-        # We can't connect to this server, or it was malformed.
-        return None
-
-    soup = BeautifulSoup(search_results.text)
-    print(soup)
+        course_additional = div.find('div', attrs={'class': 'coursedescadditional'})
+        # Some courses don't have a course additional section (i.e. co-op/COMP3999)
+        if course_additional:
