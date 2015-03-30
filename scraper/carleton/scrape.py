@@ -20,7 +20,7 @@ def make_term_code(year, term):
 
 def get_session_id():
     """
-    Returns an string used by Carleton Central to uniquely identify a session.
+    Returns a string used by Carleton Central to uniquely identify a session.
     """
     get_session_id = requests.get('http://central.carleton.ca/prod/bwysched.p_select_term',
                                   params={'wsea_code': 'EXT'})
@@ -85,5 +85,9 @@ def get_courses(faculty, year=2014, term=FALL):
     search_results = requests.post('http://central.carleton.ca/prod/bwysched.p_course_search',
                                     data=post_params)
 
-    if search_results.ok:
-        
+    if not search_results.ok:
+        # We can't connect to this server, or it was malformed.
+        return None
+
+    soup = BeautifulSoup(search_results.text)
+    print(soup)
