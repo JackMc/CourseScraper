@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 
 import datetime
+import csv
 
 FALL = 0
 WINTER = 1
@@ -13,14 +14,14 @@ SUMMER = 2
 # Experimentally determined from playing with Carleton Central.
 _TERM_MAP = {WINTER: '10', SUMMER: '20', FALL: '30'}
 
-def make_term_code(year, term):
+def _make_term_code(year, term):
     # Term is invalid.
     if term not in _TERM_MAP:
         return None
 
     return str(year) + _TERM_MAP[term]
 
-def get_session_id():
+def _get_session_id():
     """
     Returns a string used by Carleton Central to uniquely identify a session.
     """
@@ -36,6 +37,18 @@ def get_session_id():
     inputs = session_soup.find('input', attrs={'name': 'session_id'})
     return inputs['value']
 
+def _parse_row(row):
+    """
+    Returns a two-tuple containing the parsed version of a given row.
+    The first tuple will contain all 
+    """
+    if not row:
+        return (None, None)
+    elif 'DNI' in row:
+        return (None, None)
+
+    return ([eval(x) for x in row if x.startswith('[')], [x[1:] for x in row if x.startswith('\'')])
+
 def get_courses(faculty, year=2014, term=FALL):
     """
     Returns a list of Course objects for a given faculty code (i.e. COMP).
@@ -46,9 +59,12 @@ def get_courses(faculty, year=2014, term=FALL):
     # This variable contains a list of the divs that contain the course info.
     course_divs = soup.find_all('div', attrs={'class': 'courseblock'})
 
-    courses = []
+    courses = {}
 
-    for div in course_divs:
+    # Open up the courses/prereqs file
+    reader = csv.reader(open(faculty + '_prereqs.csv', 'r+'))
+
+    for div, row in zip(course_divs, reader):
         strong_block = div.find('strong')
         text = strong_block.text
         top, title = text.split('\n')
@@ -60,6 +76,16 @@ def get_courses(faculty, year=2014, term=FALL):
         # Another magic number... 3 is the length of both 1.0, 0.5, and 0.0
         credits = float(top.split('[')[1][:3])
 
-        course_additional = div.find('div', attrs={'class': 'coursedescadditional'})
-        # Some courses don't have a course additional section (i.e. co-op/COMP3999)
-        if course_additional:
+        description = str(div.string)
+
+        prereqs, text_prereqs = _parse_row(row)
+
+        if prereqs is None or text_prereqs is None:
+            continue
+
+        additional = div.find('coursedescadditional')
+
+        courses[faculty + course_no] = Course(credits, faculty, course_no, title, description, prereqs, text_prereqs,
+                                              None, additional.get_text() if additional else None)
+    return courses
+
