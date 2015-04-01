@@ -7,7 +7,7 @@ $(function() {
     obj.addClass('active');
 
     // Here goes whatever you want to do when you click a button.
-    $("#content").load(id + '.html');
+    $("#content").load(id);
   }
 
   $('.nav li a').on('click', function() {load_page(this.parentNode)});

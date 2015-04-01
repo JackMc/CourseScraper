@@ -40,7 +40,7 @@ def _get_session_id():
 def _parse_row(row):
     """
     Returns a two-tuple containing the parsed version of a given row.
-    The first tuple will contain all 
+    The first tuple will contain all
     """
     if not row:
         return (None, None)
@@ -70,7 +70,7 @@ def get_courses(faculty, year=2014, term=FALL):
         top, title = text.split('\n')
         # The first half of this would be the faculty code, which we already have.
         # Also for some reason it likes it when I split on \xa0 instead of space,
-        # though it's visaully a space. Probably a weird unicode thing.
+        # though it's visually a space. Probably a weird unicode thing.
         _, course_no = top.split('[')[0].strip().split('\xa0')
 
         # Another magic number... 3 is the length of both 1.0, 0.5, and 0.0
@@ -88,4 +88,3 @@ def get_courses(faculty, year=2014, term=FALL):
         courses[faculty + course_no] = Course(credits, faculty, course_no, title, description, prereqs, text_prereqs,
                                               None, additional.get_text() if additional else None)
     return courses
-
